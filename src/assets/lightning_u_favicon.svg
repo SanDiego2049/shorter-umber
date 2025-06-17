@@ -1,0 +1,29 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="uGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b9d;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#c44569;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="lightningGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffb347;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="#1a1a2e" stroke="#16213e" stroke-width="1"/>
+  
+  <!-- Letter U -->
+  <path d="M8 8 L8 18 Q8 24 16 24 Q24 24 24 18 L24 8" 
+        fill="none" 
+        stroke="url(#uGradient)" 
+        stroke-width="3" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <!-- Lightning bolt in the middle -->
+  <path d="M18 10 L14 16 L16 16 L14 22 L18 16 L16 16 Z" 
+        fill="url(#lightningGradient)" 
+        stroke="#fff" 
+        stroke-width="0.5"/>
+</svg>
