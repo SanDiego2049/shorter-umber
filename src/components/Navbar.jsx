@@ -135,7 +135,7 @@ const Navbar = () => {
               <>
                 <button
                   onClick={handleDashboardClick}
-                  className="hidden cursor-pointer bg-transparent md:flex items-center gap-1 px-3 py-2 dark:text-gray-300 text-gray-800 dark:hover:text-white transition-colors duration-200 rounded-full border border-gray-400"
+                  className="cursor-pointer bg-transparent md:flex items-center gap-1 px-3 py-2 dark:text-gray-300 text-gray-800 dark:hover:text-white transition-colors duration-200 rounded-full border border-gray-400"
                 >
                   <LayoutDashboard size={14} />
                   <span className="text-sm font-medium">Dashboard</span>
@@ -172,7 +172,7 @@ const Navbar = () => {
               className="w-10 h-10 dark:bg-slate-800 hover:bg-slate-700 transition-colors duration-200 rounded-full flex items-center justify-center border border-slate-600"
               title={`Switch to ${
                 actualTheme === "dark" ? "light" : "dark"
-              } mode`} 
+              } mode`}
             >
               {actualTheme === "dark" ? ( // Use actualTheme
                 <Sun className="w-5 h-5 text-yellow-400" />
