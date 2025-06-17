@@ -6,10 +6,6 @@ import toast from "react-hot-toast";
 const Hero = () => {
   const navigate = useNavigate();
 
-  const handleRegisterClick = () => {
-    navigate("/register");
-  };
-
   const [url, setUrl] = useState("");
   const [autoPaste, setAutoPaste] = useState(true);
   const [isShortening, setIsShortening] = useState(false);
@@ -140,7 +136,6 @@ const Hero = () => {
       const data = await shortenUrl(url.trim());
 
       if (data) {
-        // Update links remaining if provided by backend
         if (data.links_remaining !== undefined) {
           setLinksRemaining(data.links_remaining);
         } else {
