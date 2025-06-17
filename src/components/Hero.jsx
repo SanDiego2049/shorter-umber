@@ -157,7 +157,7 @@ const Hero = () => {
   };
 
   return (
-    <section className="h-screen mt-15 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
+    <section className="h-full mt-15 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8">
       <div className="">
         {/* Main Heading */}
         <div className="text-center mb-8 sm:mb-12">

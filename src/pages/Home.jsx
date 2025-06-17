@@ -3,6 +3,8 @@ import Hero from "../components/Hero";
 import Navbar from "../components/Navbar";
 import ThemeToggler from "../components/ThemeToggler";
 import UrlTable from "../components/UrlTable";
+import swirlImage from "../assets/Swirl.png";
+import patternImage from "../assets/Property 1=Variant2.png";
 
 const Home = () => {
   return (
@@ -13,7 +15,7 @@ const Home = () => {
         brightness-75 contrast-125 hue-rotate-180
         dark:brightness-100 dark:contrast-100 dark:hue-rotate-0"
         style={{
-          backgroundImage: "url('/src/assets/Swirl.png')",
+          backgroundImage: `url(${swirlImage})`,
           animation: "spin 30s linear infinite",
         }}
       />
@@ -24,7 +26,7 @@ const Home = () => {
         brightness-100 invert opacity-100 drop-shadow-sm
         dark:brightness-100 dark:invert-0 dark:opacity-100"
         style={{
-          backgroundImage: "url('/src/assets/Property%201=Variant2.png')",
+          backgroundImage: `url(${patternImage})`,
         }}
       />
 
