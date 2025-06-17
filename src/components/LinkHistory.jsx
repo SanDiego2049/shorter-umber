@@ -13,6 +13,16 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 
+// --- Helper Functions ---
+const handleAuthenticationError = (navigate, toast) => {
+  localStorage.removeItem("access_token");
+  toast.error("Your session has expired. Redirecting to login...");
+  setTimeout(() => {
+    localStorage.setItem("redirect_after_login", window.location.pathname);
+    navigate("/login");
+  }, 2000);
+};
+
 // --- Skeleton Components (Copied from UrlTable.jsx and adapted) ---
 const SkeletonLine = ({ width = "w-full", height = "h-4" }) => (
   <div
@@ -106,11 +116,6 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
     return localStorage.getItem("access_token");
   };
 
-  const handleAuthRedirect = () => {
-    localStorage.setItem("redirect_after_login", window.location.pathname);
-    navigate("/login");
-  };
-
   useEffect(() => {
     const token = getAuthToken();
     if (token) {
@@ -118,8 +123,8 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
       fetchLinks();
     } else {
       setIsLoggedIn(false);
-      setLoading(false); // Set loading to false if not logged in
-      setError("Please log in to view your links");
+      setLoading(false); // Immediately set loading to false if not logged in
+      setError("Please log in to view your links."); // More direct message
     }
   }, []);
 
@@ -134,7 +139,7 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
         throw new Error("No authentication token found. Please log in again.");
       }
 
-      const response = await fetch("https://shorter-umber.vercel.app/urls", {
+      const response = await fetch(`https://shorter-umber.vercel.app/urls`, {
         method: "GET",
         headers: {
           accept: "application/json",
@@ -144,12 +149,7 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
       });
 
       if (response.status === 401) {
-        localStorage.removeItem("access_token");
-        setIsLoggedIn(false);
-        toast.error("Your session has expired. Redirecting to login...");
-        setTimeout(() => {
-          handleAuthRedirect();
-        }, 2000);
+        handleAuthenticationError(navigate, toast); // Use helper
         throw new Error("Your session has expired. Please log in again.");
       }
 
@@ -169,6 +169,7 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
         dateRaw: item.date_created ? new Date(item.date_created) : new Date(),
         favicon: null,
         key: item.key,
+        secretKey: item.secret_key, // Ensure secret_key is captured for deletion
       }));
 
       setLinks(transformedLinks);
@@ -179,15 +180,6 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
 
       if (!err.message.includes("session has expired")) {
         toast.error(err.message);
-      }
-
-      if (
-        err.message.includes("session has expired") ||
-        err.message.includes("authentication")
-      ) {
-        setTimeout(() => {
-          handleAuthRedirect();
-        }, 2000);
       }
     } finally {
       setLoading(false);
@@ -209,7 +201,8 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
     }
   };
 
-  const handleDeleteLink = async (linkId) => {
+  // Modified handleDeleteLink to accept the secretKey directly
+  const handleDeleteLink = async (linkId, secretKey) => {
     try {
       setDeletingId(linkId);
 
@@ -218,13 +211,15 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
         throw new Error("No authentication token found. Please log in again.");
       }
 
-      const linkToDelete = links.find((link) => link.id === linkId);
-      if (!linkToDelete) {
-        throw new Error("Link not found");
+      // No need to find the link by ID from `links` state here
+      // as `secretKey` is now directly passed.
+      if (!secretKey) {
+        throw new Error("Secret key is missing for deletion.");
       }
 
+      // API call to delete the link using its 'secret_key'
       const response = await fetch(
-        `https://shorter-umber.vercel.app/delete/${linkToDelete.key}`,
+        `https://shorter-umber.vercel.app/delete/${secretKey}`,
         {
           method: "DELETE",
           headers: {
@@ -235,19 +230,21 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
       );
 
       if (response.status === 401) {
-        localStorage.removeItem("access_token");
-        setIsLoggedIn(false);
-        toast.error("Your session has expired. Redirecting to login...");
-        setTimeout(() => {
-          handleAuthRedirect();
-        }, 2000);
+        handleAuthenticationError(navigate, toast); // Use helper
         throw new Error("Your session has expired. Please log in again.");
       }
 
       if (!response.ok) {
-        throw new Error(`Failed to delete link: ${response.status}`);
+        // Attempt to read error message from response body
+        const errorData = await response.json().catch(() => ({
+          message: `Failed to delete link: ${response.status}`,
+        }));
+        throw new Error(
+          errorData.message || `Failed to delete link: ${response.status}`
+        );
       }
 
+      // If successful, filter out the deleted link from the state
       setLinks((prevLinks) => prevLinks.filter((link) => link.id !== linkId));
       toast.success("Link deleted successfully!");
 
@@ -259,15 +256,6 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
 
       if (!err.message.includes("session has expired")) {
         toast.error(err.message);
-      }
-
-      if (
-        err.message.includes("session has expired") ||
-        err.message.includes("authentication")
-      ) {
-        setTimeout(() => {
-          handleAuthRedirect();
-        }, 2000);
       }
     } finally {
       setDeletingId(null);
@@ -299,6 +287,10 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
       } else if (sortField === "clicks") {
         aValue = a.clicks;
         bValue = b.clicks;
+      } else {
+        // Fallback for other fields if needed, e.g., string comparison
+        aValue = String(a[sortField]).toLowerCase();
+        bValue = String(b[sortField]).toLowerCase();
       }
 
       if (aValue < bValue) {
@@ -338,11 +330,11 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
   };
 
   const handleLogin = () => {
-    handleAuthRedirect();
+    handleAuthenticationError(navigate, toast);
   };
 
   // --- Start: Render skeleton components during loading ---
-  if (loading && isLoggedIn) {
+  if (loading) {
     return (
       <div className="dark:bg-slate-800 backdrop-blur-2xl rounded-lg border border-slate-700 flex flex-col h-full max-h-[600px]">
         <style jsx>{`
@@ -424,8 +416,8 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
   }
   // --- End: Render skeleton components during loading ---
 
-  // Error state
-  if (error) {
+  // Error or Not Logged In state
+  if (error || !isLoggedIn) {
     return (
       <div className="dark:bg-slate-800 rounded-lg border border-slate-700 flex flex-col h-full max-h-[600px] pb-5">
         <div className="p-4 sm:p-6 border-b border-slate-700 flex-shrink-0">
@@ -435,11 +427,16 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
           <div className="text-center pt-3 space-y-4">
             <div className="flex items-center gap-2 text-red-400 justify-center">
               <AlertCircle size={20} />
-              <span>Error loading links</span>
+              <span>{error || "Please log in to view your links."}</span>
             </div>
-            <p className="text-slate-400 text-sm">{error}</p>
+            <p className="text-slate-400 text-sm">
+              {isLoggedIn
+                ? "There was an issue fetching your links. Please try again."
+                : "You need to be logged in to access your link history."}
+            </p>
             <div className="flex gap-2 justify-center">
-              {error.includes("session has expired") ||
+              {!isLoggedIn ||
+              error.includes("session has expired") ||
               error.includes("authentication") ? (
                 <button
                   onClick={handleLogin}
@@ -510,26 +507,26 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                     <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                       Original Link
                     </th>
-                    <th
-                      className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none"
-                      onClick={() => handleSort("clicks")}
-                    >
-                      <div className="flex items-center gap-1">
+                    <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
+                      <button
+                        onClick={() => handleSort("clicks")}
+                        className="flex items-center gap-1 group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                      >
                         Clicks
                         <SortIcon field="clicks" />
-                      </div>
+                      </button>
                     </th>
                     <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                       Status
                     </th>
-                    <th
-                      className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none"
-                      onClick={() => handleSort("date")}
-                    >
-                      <div className="flex items-center gap-1">
+                    <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
+                      <button
+                        onClick={() => handleSort("date")}
+                        className="flex items-center gap-1 group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                      >
                         Date
                         <SortIcon field="date" />
-                      </div>
+                      </button>
                     </th>
                     <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                       Actions
@@ -598,7 +595,9 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                             <ExternalLink size={16} />
                           </button>
                           <button
-                            onClick={() => handleDeleteLink(link.id)}
+                            onClick={() =>
+                              handleDeleteLink(link.id, link.secretKey)
+                            } // Pass link.secretKey here
                             disabled={deletingId === link.id}
                             className={`p-2 rounded transition-colors ${
                               deletingId === link.id
@@ -687,7 +686,9 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                         <ExternalLink size={16} />
                       </button>
                       <button
-                        onClick={() => handleDeleteLink(link.id)}
+                        onClick={() =>
+                          handleDeleteLink(link.id, link.secretKey)
+                        } // Pass link.secretKey here
                         disabled={deletingId === link.id}
                         className={`p-2 rounded transition-colors ${
                           deletingId === link.id

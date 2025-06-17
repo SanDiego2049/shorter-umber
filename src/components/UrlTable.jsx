@@ -2,7 +2,6 @@ import {
   Copy,
   QrCode,
   ExternalLink,
-  Loader2,
   AlertCircle,
   RefreshCcw,
   ChevronUp,
@@ -11,8 +10,9 @@ import {
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
+import QrCodeModal from "../components/QrCodeModal";
 
-// Skeleton Components
+// Skeleton Components (Keep these as they are, they are well-structured)
 const SkeletonLine = ({ width = "w-full", height = "h-4" }) => (
   <div
     className={`bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 ${width} ${height} rounded animate-pulse bg-[length:200%_100%] skeleton-shimmer`}
@@ -101,6 +101,9 @@ const UrlTable = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [selectedShortLinkKey, setSelectedShortLinkKey] = useState(null);
+  const [selectedShortUrl, setSelectedShortUrl] = useState(null);
 
   const getAuthToken = () => {
     return localStorage.getItem("access_token");
@@ -155,6 +158,7 @@ const UrlTable = () => {
       const transformedData = data
         .map((item, index) => ({
           id: item.id || index + 1,
+          key: item.key, // Ensure the 'key' is part of the item for QR code generation
           shortUrl: `https://shorter-umber.vercel.app/s/${item.key}`,
           target_url: item.original_url || item.target_url,
           qrCode: true, // Assuming all URLs have QR codes available
@@ -243,6 +247,20 @@ const UrlTable = () => {
     );
   };
 
+  // Handler to open QR modal
+  const handleOpenQrModal = (linkKey, fullUrl) => {
+    setSelectedShortLinkKey(linkKey);
+    setSelectedShortUrl(fullUrl);
+    setShowQrModal(true);
+  };
+
+  // Handler to close QR modal
+  const handleCloseQrModal = () => {
+    setShowQrModal(false);
+    setSelectedShortLinkKey(null);
+    setSelectedShortUrl(null);
+  };
+
   // Footer component that will always be shown
   const Footer = () => (
     <div className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-md dark:bg-slate-900/70 bg-gray-200 border-t border-slate-700/50">
@@ -260,8 +278,11 @@ const UrlTable = () => {
             </>
           ) : (
             <span>
-              Check <span className="text-blue-400">Dashboard</span> for
-              Unlimited History
+              Check{" "}
+              <a href="/dashboard" className="text-blue-400 underline">
+                Dashboard
+              </a>{" "}
+              for Unlimited History
             </span>
           )}
         </span>
@@ -365,7 +386,9 @@ const UrlTable = () => {
 
             {/* Mobile Card View */}
             <div className="lg:hidden backdrop-blur-2xl">
-              <div className="max-h-75 overflow-y-auto space-y-4 p-4">
+              {/* Changed max-h-85 to max-h-96 (standard Tailwind) or a custom value from your config */}
+              {/* Ensure enough bottom padding to account for the fixed footer */}
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto space-y-4 p-4 pb-20">
                 {/* Render skeleton cards */}
                 {[...Array(3)].map((_, index) => (
                   <SkeletonMobileCard key={index} />
@@ -522,7 +545,7 @@ const UrlTable = () => {
                           >
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2">
-                                <span className="text-blue-400  text-sm">
+                                <span className="text-blue-400 text-sm">
                                   {item.shortUrl}
                                 </span>
                                 <button
@@ -542,13 +565,20 @@ const UrlTable = () => {
                                 </span>
                               </div>
                             </td>
+                            {/* QR Code Cell - Now a button */}
                             <td className="py-4 px-4">
-                              <div className="flex items-center justify-center w-8 h-8 dark:bg-slate-700 rounded">
+                              <button
+                                onClick={() =>
+                                  handleOpenQrModal(item.key, item.shortUrl)
+                                }
+                                className="flex items-center justify-center w-8 h-8 dark:bg-slate-700 rounded cursor-pointer hover:bg-slate-600 transition-colors group"
+                                aria-label={`Show QR code for ${item.shortUrl}`}
+                              >
                                 <QrCode
                                   size={16}
-                                  className="dark:text-slate-300"
+                                  className="dark:text-slate-300 group-hover:text-blue-400 transition-colors"
                                 />
-                              </div>
+                              </button>
                             </td>
                             <td className="py-4 px-4">
                               <span className="dark:text-slate-400 text-sm">
@@ -570,7 +600,7 @@ const UrlTable = () => {
 
               {/* Mobile Card View */}
               <div className="lg:hidden backdrop-blur-2xl">
-                <div className="max-h-75 overflow-y-auto space-y-4 p-4">
+                <div className="max-h-[calc(100vh-250px)] overflow-y-auto space-y-4 p-4 pb-20">
                   {sortedUrls.map((item) => (
                     <div
                       key={item.id}
@@ -579,15 +609,32 @@ const UrlTable = () => {
                       {/* Header with platform icon and status */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center justify-center w-8 h-8 dark:bg-slate-600 rounded">
-                            <QrCode size={14} className="dark:text-slate-300" />
-                          </div>
-                          <ExternalLink
-                            size={14}
-                            className="dark:text-slate-500 dark:hover:text-slate-300 cursor-pointer"
-                          />
+                          {/* QR code button for mobile card */}
+                          <button
+                            onClick={() =>
+                              handleOpenQrModal(item.key, item.shortUrl)
+                            }
+                            className="flex items-center justify-center w-7 h-7 dark:bg-slate-600 rounded cursor-pointer hover:bg-slate-500 transition-colors group"
+                            aria-label={`Show QR code for ${item.shortUrl}`}
+                          >
+                            <QrCode
+                              size={14}
+                              className="dark:text-slate-300 group-hover:text-blue-400 transition-colors"
+                            />
+                          </button>
+                          {/* External Link icon: Ensure it's not too large */}
+                          <a
+                            href={item.shortUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="dark:text-slate-500 dark:hover:text-slate-300 cursor-pointer flex-shrink-0"
+                            aria-label={`Visit ${item.shortUrl}`}
+                          >
+                            <ExternalLink size={14} />
+                          </a>
                         </div>
-                        <span className="text-xs dark:text-slate-400">
+                        {/* Clicks count: Use text-xs for small screens */}
+                        <span className="text-xs dark:text-slate-400 flex-shrink-0">
                           {item.clicks} clicks
                         </span>
                       </div>
@@ -598,9 +645,11 @@ const UrlTable = () => {
                           Short Link
                         </label>
                         <div className="flex items-center gap-2">
-                          <span className="text-blue-400 hover:text-blue-300 cursor-pointer text-sm break-all">
+                          {/* Added flex-auto to allow text to take available space and break */}
+                          <span className="text-blue-400 hover:text-blue-300 cursor-pointer text-sm break-all flex-auto min-w-0">
                             {item.shortUrl}
                           </span>
+                          {/* Copy button: Ensure it doesn't push the URL off screen */}
                           <button
                             onClick={() => handleCopy(item.shortUrl, item.id)}
                             className="dark:text-slate-400 hover:text-blue-400 transition-colors flex-shrink-0"
@@ -615,7 +664,8 @@ const UrlTable = () => {
                         <label className="text-xs dark:text-slate-400 uppercase tracking-wide font-semibold">
                           Original Link
                         </label>
-                        <span className="dark:text-slate-300 text-sm break-all block">
+                        {/* Added min-w-0 to ensure it can shrink, and truncate for very long URLs */}
+                        <span className="dark:text-slate-300 text-sm break-all block min-w-0">
                           {item.target_url}
                         </span>
                       </div>
@@ -642,6 +692,15 @@ const UrlTable = () => {
         {/* Fixed Footer with Frosted Glass Effect - Always shown */}
         <Footer />
       </div>
+
+      {/* Render QR Code Modal conditionally */}
+      {showQrModal && (
+        <QrCodeModal
+          shortLinkKey={selectedShortLinkKey}
+          shortUrl={selectedShortUrl}
+          onClose={handleCloseQrModal}
+        />
+      )}
     </div>
   );
 };

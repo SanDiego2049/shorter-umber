@@ -73,8 +73,8 @@ const Navbar = () => {
   };
 
   return (
-    <nav className=" w-full">
-      <div className=" mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="w-full">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <div className="flex-shrink-0">
@@ -135,17 +135,24 @@ const Navbar = () => {
               <>
                 <button
                   onClick={handleDashboardClick}
-                  className="cursor-pointer bg-transparent md:flex items-center gap-1 px-3 py-2 dark:text-gray-300 text-gray-800 dark:hover:text-white transition-colors duration-200 rounded-full border border-gray-400"
+                  // Changed px-3 to px-2, added hidden for text on extra small screens, and flex-none to prevent shrinking
+                  className="cursor-pointer bg-transparent flex items-center gap-1 px-2 py-2 dark:text-gray-300 text-gray-800 dark:hover:text-white transition-colors duration-200 rounded-full border border-gray-400 flex-none"
                 >
-                  <LayoutDashboard size={14} />
-                  <span className="text-sm font-medium">Dashboard</span>
+                  <LayoutDashboard size={18} />{" "}
+                  {/* Increased icon size for better visibility */}
+                  <span className="text-sm font-medium hidden xs:inline">
+                    Dashboard
+                  </span>{" "}
+                  {/* Hidden on very small screens, visible on 'xs' breakpoint */}
                 </button>
                 <button
                   onClick={handleLogoutClick}
-                  className="cursor-pointer px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors duration-200 shadow-lg hover:shadow-red-500/25 text-sm flex items-center gap-1"
+                  // Changed px-4 to px-2, text-sm to text-xs, and added hidden for text on extra small screens, and flex-none
+                  className="cursor-pointer px-2 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors duration-200 shadow-lg hover:shadow-red-500/25 text-xs flex items-center gap-1 flex-none"
                 >
-                  <LogOut size={14} />
-                  Logout
+                  <LogOut size={18} /> {/* Increased icon size */}
+                  <span className="hidden xs:inline">Logout</span>{" "}
+                  {/* Hidden on very small screens, visible on 'xs' breakpoint */}
                 </button>
               </>
             ) : (
@@ -153,23 +160,29 @@ const Navbar = () => {
               <>
                 <button
                   onClick={handleLoginClick}
-                  className="cursor-pointer bg-transparent flex items-center gap-1 px-3 py-2 dark:text-gray-300 text-gray-800 dark:hover:text-white transition-colors duration-200 rounded-full border border-gray-400"
+                  // Adjusted padding and text size for smaller screens
+                  className="cursor-pointer bg-transparent flex items-center gap-1 px-2 py-2 dark:text-gray-300 text-gray-800 dark:hover:text-white transition-colors duration-200 rounded-full border border-gray-400 flex-none"
                 >
-                  <span className="text-sm font-medium">Login</span>
-                  <LogIn size={14} />
+                  <span className="text-sm font-medium hidden xs:inline">
+                    Login
+                  </span>
+                  <LogIn size={18} />
                 </button>
                 <button
                   onClick={handleRegisterClick}
-                  className="cursor-pointer px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors duration-200 shadow-lg hover:shadow-blue-500/25 text-sm"
+                  // Adjusted padding and text size for smaller screens
+                  className="cursor-pointer px-2 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors duration-200 shadow-lg hover:shadow-blue-500/25 text-sm flex-none"
                 >
-                  Register
+                  <span className="hidden xs:inline">Register</span>
+                  <LogIn size={18} className="xs:hidden" />{" "}
+                  {/* Show icon only on extra small screens */}
                 </button>
               </>
             )}
             {/* Theme Toggle Button (always visible and functional) */}
             <button
               onClick={handleThemeToggle}
-              className="w-10 h-10 dark:bg-slate-800 hover:bg-slate-700 transition-colors duration-200 rounded-full flex items-center justify-center border border-slate-600"
+              className="w-10 h-10 dark:bg-slate-800 hover:bg-slate-700 transition-colors duration-200 rounded-full flex items-center justify-center border border-slate-600 flex-none"
               title={`Switch to ${
                 actualTheme === "dark" ? "light" : "dark"
               } mode`}
