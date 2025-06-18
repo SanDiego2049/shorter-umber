@@ -8,10 +8,12 @@ import {
   RefreshCcw,
   ChevronUp,
   ChevronDown,
+  QrCode, // Import QrCode icon
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
+import QrCodeModal from "./QrCodeModal";
 
 // --- Helper Functions ---
 const handleAuthenticationError = (navigate, toast) => {
@@ -23,7 +25,6 @@ const handleAuthenticationError = (navigate, toast) => {
   }, 2000);
 };
 
-// --- Skeleton Components (Copied from UrlTable.jsx and adapted) ---
 const SkeletonLine = ({ width = "w-full", height = "h-4" }) => (
   <div
     className={`bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200 dark:from-slate-700 dark:via-slate-600 dark:to-slate-700 ${width} ${height} rounded animate-pulse bg-[length:200%_100%] skeleton-shimmer`}
@@ -55,6 +56,10 @@ const SkeletonTableRow = () => (
     </td>
     <td className="p-4">
       <SkeletonLine width="w-24" height="h-4" />
+    </td>
+    {/* Add skeleton for QR Code column */}
+    <td className="p-4">
+      <SkeletonCircle size="w-8 h-8" />
     </td>
     <td className="p-4">
       <div className="flex items-center gap-2">
@@ -95,6 +100,7 @@ const SkeletonMobileCard = () => (
         <SkeletonCircle size="w-8 h-8" />
         <SkeletonCircle size="w-8 h-8" />
         <SkeletonCircle size="w-8 h-8" />
+        <SkeletonCircle size="w-8 h-8" /> {/* Skeleton for QR code button */}
       </div>
     </div>
   </div>
@@ -111,6 +117,9 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
+
+  // State for QR Code Modal
+  const [qrCodeModalData, setQrCodeModalData] = useState(null); // { shortLinkKey, shortUrl }
 
   const getAuthToken = () => {
     return localStorage.getItem("access_token");
@@ -168,7 +177,7 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
         date: item.date_created || new Date().toISOString(),
         dateRaw: item.date_created ? new Date(item.date_created) : new Date(),
         favicon: null,
-        key: item.key,
+        key: item.key, // Ensure key is captured for QR Code modal
         secretKey: item.secret_key, // Ensure secret_key is captured for deletion
       }));
 
@@ -333,7 +342,16 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
     handleAuthenticationError(navigate, toast);
   };
 
-  // --- Start: Render skeleton components during loading ---
+  // Function to open QR Code modal
+  const openQrCodeModal = (shortLinkKey, shortUrl) => {
+    setQrCodeModalData({ shortLinkKey, shortUrl });
+  };
+
+  // Function to close QR Code modal
+  const closeQrCodeModal = () => {
+    setQrCodeModalData(null);
+  };
+
   if (loading) {
     return (
       <div className="dark:bg-slate-800 backdrop-blur-2xl rounded-lg border border-slate-700 flex flex-col h-full max-h-[600px]">
@@ -390,6 +408,9 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                   </th>
                   <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                     Date
+                  </th>
+                  <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide truncate">
+                    QR Code
                   </th>
                   <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                     Actions
@@ -487,10 +508,12 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
         {links.length === 0 && !loading && !error ? (
           <div className="p-8 text-center">
             <div className="w-16 h-16 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Link size={24} className="text-slate-400" />
+              <Link size={24} className="dark:text-slate-400" />
             </div>
-            <h3 className="text-slate-300 font-medium mb-2">No links yet</h3>
-            <p className="text-slate-400 text-sm">
+            <h3 className="dark:text-slate-300 font-medium mb-2">
+              No links yet
+            </h3>
+            <p className="dark:text-slate-400 text-slate-500 text-sm ">
               Start by creating your first shortened link
             </p>
           </div>
@@ -510,7 +533,7 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                     <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                       <button
                         onClick={() => handleSort("clicks")}
-                        className="flex items-center gap-1 group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                        className="flex items-center gap-1 group rounded uppercase"
                       >
                         Clicks
                         <SortIcon field="clicks" />
@@ -522,11 +545,14 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                     <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                       <button
                         onClick={() => handleSort("date")}
-                        className="flex items-center gap-1 group focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+                        className="flex items-center gap-1 group rounded uppercase"
                       >
                         Date
                         <SortIcon field="date" />
                       </button>
+                    </th>
+                    <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide truncate">
+                      QR Code {/* New Header */}
                     </th>
                     <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                       Actions
@@ -571,6 +597,18 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                         <span className="dark:text-slate-300 truncate">
                           {formatDate(link.date)}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        {/* QR Code Button for Desktop */}
+                        <button
+                          onClick={() =>
+                            openQrCodeModal(link.key, link.shortUrl)
+                          }
+                          className="p-2 dark:text-slate-400 hover:text-purple-400 rounded transition-colors"
+                          title="View QR Code"
+                        >
+                          <QrCode size={16} />
+                        </button>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
@@ -667,6 +705,14 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                       {formatDate(link.date)}
                     </span>
                     <div className="flex items-center gap-1">
+                      {/* QR Code Button for Mobile */}
+                      <button
+                        onClick={() => openQrCodeModal(link.key, link.shortUrl)}
+                        className="p-2 dark:text-slate-400 hover:text-purple-400 rounded transition-colors"
+                        title="View QR Code"
+                      >
+                        <QrCode size={16} />
+                      </button>
                       <button
                         onClick={() => handleCopyLink(link.shortUrl)}
                         className={`p-2 transition-colors rounded ${
@@ -711,6 +757,15 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
           </>
         )}
       </div>
+
+      {/* QR Code Modal */}
+      {qrCodeModalData && (
+        <QrCodeModal
+          shortLinkKey={qrCodeModalData.shortLinkKey}
+          shortUrl={qrCodeModalData.shortUrl}
+          onClose={closeQrCodeModal}
+        />
+      )}
     </div>
   );
 };

@@ -2,12 +2,13 @@ import {
   Copy,
   QrCode,
   ExternalLink,
+  Loader2,
   AlertCircle,
   RefreshCcw,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router";
 import QrCodeModal from "../components/QrCodeModal";
@@ -92,15 +93,23 @@ const SkeletonMobileCard = () => (
   </div>
 );
 
+const URL_LIMIT = 5; // Define the maximum number of URLs to show
+
 const UrlTable = () => {
   const navigate = useNavigate();
   const [urls, setUrls] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // True by default for initial state
   const [error, setError] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sortField, setSortField] = useState(null);
   const [sortDirection, setSortDirection] = useState("asc");
+
+  // New state to manage the initial "fake" loading for unauthenticated users
+  const [showInitialSkeletonAndRedirect, setShowInitialSkeletonAndRedirect] =
+    useState(true);
+
+  // New state for QR code modal
   const [showQrModal, setShowQrModal] = useState(false);
   const [selectedShortLinkKey, setSelectedShortLinkKey] = useState(null);
   const [selectedShortUrl, setSelectedShortUrl] = useState(null);
@@ -111,24 +120,41 @@ const UrlTable = () => {
 
   useEffect(() => {
     const token = getAuthToken();
+
     if (token) {
+      // User is logged in, attempt to fetch actual URLs
       setIsLoggedIn(true);
+      setShowInitialSkeletonAndRedirect(false); // No need for fake loading if logged in
       fetchUrls();
     } else {
-      setIsLoggedIn(false);
-      setLoading(false);
-      setError("Please log in to view your URLs");
+      // User is NOT logged in, simulate loading for 5 seconds then redirect
+      setLoading(true); // Ensure loading is true to show skeleton
+      setError(null); // Clear any previous error state
+
+      const redirectTimer = setTimeout(() => {
+        setLoading(false); // Stop loading after fake period
+        setShowInitialSkeletonAndRedirect(false); // Indicate fake load is complete
+        navigate("/login"); // Redirect to login page
+      }, 5000); // 5000ms = 5 seconds
+
+      // Cleanup function for the timer
+      return () => clearTimeout(redirectTimer);
     }
-  }, []);
+  }, []); // Empty dependency array ensures this effect runs only once on mount
 
   const fetchUrls = async () => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true); // Always set loading true when fetching data
+      setError(null); // Clear errors before a new fetch attempt
 
       const token = getAuthToken();
 
       if (!token) {
+        // This case should ideally not be hit if useEffect handles initial non-auth correctly.
+        // It's a fallback for refresh or other edge cases where token disappears mid-session.
+        localStorage.removeItem("access_token");
+        setIsLoggedIn(false);
+        // Throw an error to display the error message and trigger login redirect
         throw new Error("No authentication token found. Please log in again.");
       }
 
@@ -145,6 +171,8 @@ const UrlTable = () => {
         // Token is invalid or expired
         localStorage.removeItem("access_token");
         setIsLoggedIn(false);
+        // This will trigger the "Error loading URLs" path for logged-in users
+        // and then redirect via the error message's logic.
         throw new Error("Your session has expired. Please log in again.");
       }
 
@@ -154,7 +182,6 @@ const UrlTable = () => {
 
       const data = await response.json();
 
-      // Transform the data and sort by date in descending order, then take the latest 5
       const transformedData = data
         .map((item, index) => ({
           id: item.id || index + 1,
@@ -169,23 +196,24 @@ const UrlTable = () => {
           clicks: item.clicks || 0,
         }))
         .sort((a, b) => b.dateRaw - a.dateRaw) // Sort by dateRaw descending
-        .slice(0, 5); // Take only the latest 5 links
+        .slice(0, URL_LIMIT); // Take only the latest 'URL_LIMIT' links
 
       setUrls(transformedData);
-      setIsLoggedIn(true);
+      setIsLoggedIn(true); // Confirm logged in after successful fetch
     } catch (err) {
       console.error("Error fetching URLs:", err);
       setError(err.message);
-      toast.error(err.message);
+      toast.error(err.message); // Always show toast for actual fetch errors
 
-      // If it's an auth error, redirect to login
+      // If it's an auth error during a fetch, redirect to login after toast
       if (
         err.message.includes("session has expired") ||
-        err.message.includes("authentication")
+        err.message.includes("authentication") ||
+        err.message.includes("No authentication token") // Added this specific error message
       ) {
         setTimeout(() => {
           navigate("/login");
-        }, 2000);
+        }, 2000); // Give user time to see the toast
       }
     } finally {
       setLoading(false);
@@ -224,6 +252,9 @@ const UrlTable = () => {
       } else if (sortField === "clicks") {
         aValue = a.clicks;
         bValue = b.clicks;
+      } else {
+        aValue = String(a[sortField]).toLowerCase();
+        bValue = String(b[sortField]).toLowerCase();
       }
 
       if (aValue < bValue) {
@@ -238,12 +269,12 @@ const UrlTable = () => {
 
   const SortIcon = ({ field }) => {
     if (sortField !== field) {
-      return <ChevronUp className="w-4 h-4 text-slate-400 opacity-50" />;
+      return <ChevronUp className="w-4 h-4 dark:text-slate-400 opacity-50" />;
     }
     return sortDirection === "asc" ? (
-      <ChevronUp className="w-4 h-4 text-slate-300" />
+      <ChevronUp className="w-4 h-4 dark:**:text-slate-300" />
     ) : (
-      <ChevronDown className="w-4 h-4 text-slate-300" />
+      <ChevronDown className="w-4 h-4 dark:text-slate-300" />
     );
   };
 
@@ -298,14 +329,111 @@ const UrlTable = () => {
   };
 
   const handleRefresh = () => {
-    fetchUrls();
+    // Only refresh if user is logged in
+    if (isLoggedIn) {
+      fetchUrls();
+    } else {
+      // If refresh is clicked while not logged in (and after the fake load),
+      // just redirect to login immediately.
+      navigate("/login");
+    }
   };
 
   const handleLogin = () => {
     navigate("/login");
   };
 
-  // Show skeleton loading while maintaining the UI structure
+  // Calculate URLs remaining
+  const urlsRemaining = Math.max(0, URL_LIMIT - urls.length);
+
+  // --- Render Logic ---
+
+  // Scenario 1: Initial fake loading for unauthenticated users
+  if (showInitialSkeletonAndRedirect && !isLoggedIn) {
+    return (
+      <div className="w-full bg-transparent p-4 sm:p-6 min-h-full">
+        <style jsx>{`
+          @keyframes shimmer {
+            0% {
+              background-position: -200% 0;
+            }
+            100% {
+              background-position: 200% 0;
+            }
+          }
+          .skeleton-shimmer {
+            animation: shimmer 2s infinite;
+          }
+        `}</style>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold dark:text-slate-200">
+              Your Top URLs
+            </h2>
+            {/* Refresh button is still visible during fake load */}
+            <button
+              onClick={handleRefresh}
+              className="py-1 text-sm cursor-pointer text-blue-500 rounded transition-colors"
+            >
+              <RefreshCcw className="animate-spin" />
+            </button>
+          </div>
+
+          <div className="dark:bg-slate-800 rounded-lg overflow-hidden mb-20">
+            <div className="hidden lg:block">
+              <div className="overflow-x-auto">
+                <div className="max-h-75 overflow-y-auto">
+                  <table className="w-full backdrop-blur-2xl">
+                    <thead className="bg-gray-300 dark:bg-slate-700 sticky top-0 z-10">
+                      <tr>
+                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
+                          Short Link
+                        </th>
+                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
+                          Original Link
+                        </th>
+                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
+                          QR Code
+                        </th>
+                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none">
+                          <div className="flex items-center gap-1">
+                            Date
+                            <ChevronUp className="w-4 h-4 dark:text-slate-400 opacity-50" />
+                          </div>
+                        </th>
+                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none">
+                          <div className="flex items-center gap-1">
+                            Clicks
+                            <ChevronUp className="w-4 h-4 dark:text-slate-400 opacity-50" />
+                          </div>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700">
+                      {[...Array(5)].map((_, index) => (
+                        <SkeletonTableRow key={index} />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:hidden backdrop-blur-2xl">
+              <div className="max-h-[calc(100vh-250px)] overflow-y-auto space-y-4 p-4 pb-20">
+                {[...Array(3)].map((_, index) => (
+                  <SkeletonMobileCard key={index} />
+                ))}
+              </div>
+            </div>
+          </div>
+          <Footer />
+        </div>
+      </div>
+    );
+  }
+
+  // Scenario 2: User is logged in and data is loading (real fetch)
   if (loading && isLoggedIn) {
     return (
       <div className="w-full bg-transparent p-4 sm:p-6 min-h-full">
@@ -323,27 +451,19 @@ const UrlTable = () => {
           }
         `}</style>
         <div className="max-w-7xl mx-auto">
-          {/* Header with refresh button - Static elements shown immediately */}
           <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold dark:text-slate-200">
-                Your URLs
-              </h2>
-              <SkeletonLine width="w-8" height="h-4" />
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleRefresh}
-                className="py-1 text-sm cursor-pointer text-blue-500 rounded transition-colors"
-              >
-                <RefreshCcw className={loading ? "animate-spin" : ""} />
-              </button>
-            </div>
+            <h2 className="text-lg font-semibold dark:text-slate-200">
+              Your Top URLs
+            </h2>
+            <button
+              onClick={handleRefresh}
+              className="py-1 text-sm cursor-pointer text-blue-500 rounded transition-colors"
+            >
+              <RefreshCcw className="animate-spin" />
+            </button>
           </div>
 
-          {/* Table Container with skeleton content */}
           <div className="dark:bg-slate-800 rounded-lg overflow-hidden mb-20">
-            {/* Desktop Table View */}
             <div className="hidden lg:block">
               <div className="overflow-x-auto">
                 <div className="max-h-75 overflow-y-auto">
@@ -359,22 +479,21 @@ const UrlTable = () => {
                         <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                           QR Code
                         </th>
-                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer hover:bg-slate-600 transition-colors select-none">
+                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none">
                           <div className="flex items-center gap-1">
                             Date
-                            <ChevronUp className="w-4 h-4 text-slate-400 opacity-50" />
+                            <ChevronUp className="w-4 h-4 dark:text-slate-400 opacity-50" />
                           </div>
                         </th>
-                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer hover:bg-slate-600 transition-colors select-none">
+                        <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none">
                           <div className="flex items-center gap-1">
                             Clicks
-                            <ChevronUp className="w-4 h-4 text-slate-400 opacity-50" />
+                            <ChevronUp className="w-4 h-4 dark:text-slate-400 opacity-50" />
                           </div>
                         </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700">
-                      {/* Render skeleton rows */}
                       {[...Array(5)].map((_, index) => (
                         <SkeletonTableRow key={index} />
                       ))}
@@ -384,26 +503,21 @@ const UrlTable = () => {
               </div>
             </div>
 
-            {/* Mobile Card View */}
             <div className="lg:hidden backdrop-blur-2xl">
-              {/* Changed max-h-85 to max-h-96 (standard Tailwind) or a custom value from your config */}
-              {/* Ensure enough bottom padding to account for the fixed footer */}
               <div className="max-h-[calc(100vh-250px)] overflow-y-auto space-y-4 p-4 pb-20">
-                {/* Render skeleton cards */}
                 {[...Array(3)].map((_, index) => (
                   <SkeletonMobileCard key={index} />
                 ))}
               </div>
             </div>
           </div>
-
-          {/* Fixed Footer - Always shown */}
           <Footer />
         </div>
       </div>
     );
   }
 
+  // Scenario 3: Error occurred during fetch (and user was initially logged in or tried to refresh)
   if (error) {
     return (
       <div className="w-full bg-transparent p-4 sm:p-6 min-h-screen">
@@ -418,7 +532,8 @@ const UrlTable = () => {
 
               <div className="flex gap-2 justify-center">
                 {error.includes("session has expired") ||
-                error.includes("authentication") ? (
+                error.includes("authentication") ||
+                error.includes("No authentication token") ? (
                   <button
                     onClick={handleLogin}
                     className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
@@ -442,33 +557,7 @@ const UrlTable = () => {
     );
   }
 
-  // If not logged in, show login prompt
-  if (!isLoggedIn) {
-    return (
-      <div className="w-full bg-transparent p-4 sm:p-6 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center space-y-4">
-              <h2 className="text-xl font-semibold dark:text-slate-200">
-                Please Log In
-              </h2>
-              <p className="dark:text-slate-400">
-                You need to be logged in to view your shortened URLs.
-              </p>
-              <button
-                onClick={handleLogin}
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                Go to Login
-              </button>
-            </div>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
+  // Scenario 4: Not loading, no error, and user is logged in (display actual data)
   const sortedUrls = getSortedUrls();
 
   return (
@@ -476,8 +565,10 @@ const UrlTable = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header with refresh button */}
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold dark:text-slate-200">
-            Your URLs ({urls.length})
+          <h2 className="text-lg font-semibold dark:text-slate-200 text-slate-700">
+            {urls.length === URL_LIMIT
+              ? `Your Top (${URL_LIMIT}) URLs (Limit Reached)`
+              : `Your Top (${urls.length}) URLs (${urlsRemaining} of ${URL_LIMIT} left)`}
           </h2>
           <div className="flex gap-2">
             <button
@@ -518,7 +609,7 @@ const UrlTable = () => {
                             QR Code
                           </th>
                           <th
-                            className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer hover:bg-slate-600 transition-colors select-none"
+                            className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none"
                             onClick={() => handleSort("date")}
                           >
                             <div className="flex items-center gap-1">
@@ -527,7 +618,7 @@ const UrlTable = () => {
                             </div>
                           </th>
                           <th
-                            className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer hover:bg-slate-600 transition-colors select-none"
+                            className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide cursor-pointer transition-colors select-none"
                             onClick={() => handleSort("clicks")}
                           >
                             <div className="flex items-center gap-1">
