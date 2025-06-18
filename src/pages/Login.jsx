@@ -122,7 +122,7 @@ const Login = () => {
                   htmlFor="username"
                   className="block text-sm font-medium dark:text-gray-300 mb-2"
                 >
-                  Username
+                  Email
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 dark:text-gray-400" />
