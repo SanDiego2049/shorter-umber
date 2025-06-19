@@ -1,4 +1,5 @@
 // src/pages/Home.jsx
+import { useState } from "react"; // MODIFIED: Import useState
 import Hero from "../components/Hero";
 import Navbar from "../components/Navbar";
 import ThemeToggler from "../components/ThemeToggler";
@@ -7,6 +8,14 @@ import swirlImage from "../assets/Swirl.png";
 import patternImage from "../assets/Property 1=Variant2.png";
 
 const Home = () => {
+  // MODIFIED: Add a state to trigger URL table refresh
+  const [urlRefreshTrigger, setUrlRefreshTrigger] = useState(0);
+
+  // MODIFIED: Callback function to increment the trigger
+  const handleUrlShortened = () => {
+    setUrlRefreshTrigger((prevKey) => prevKey + 1);
+  };
+
   return (
     <main className="dark:bg-gray-900 relative flex flex-col items-center h-screen overflow-hidden">
       {/* Animated swirl background */}
@@ -33,9 +42,11 @@ const Home = () => {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center w-full">
         <Navbar />
-        <Hero />
+        {/* MODIFIED: Pass the callback to Hero */}
+        <Hero onUrlShortened={handleUrlShortened} />
         <ThemeToggler />
-        <UrlTable />
+        {/* MODIFIED: Pass the refresh trigger to UrlTable */}
+        <UrlTable refreshTrigger={urlRefreshTrigger} />
       </div>
     </main>
   );

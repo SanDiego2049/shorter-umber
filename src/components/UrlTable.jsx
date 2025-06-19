@@ -2,7 +2,7 @@ import {
   Copy,
   QrCode,
   ExternalLink,
-  Loader2,
+  Loader2, // This one is not used directly in current rendering, but good to keep if needed
   AlertCircle,
   RefreshCcw,
   ChevronUp,
@@ -95,7 +95,8 @@ const SkeletonMobileCard = () => (
 
 const URL_LIMIT = 5; // Define the maximum number of URLs to show
 
-const UrlTable = () => {
+// MODIFICATION START: Accept refreshTrigger prop
+const UrlTable = ({ refreshTrigger }) => {
   const navigate = useNavigate();
   const [urls, setUrls] = useState([]);
   const [loading, setLoading] = useState(true); // True by default for initial state
@@ -122,39 +123,33 @@ const UrlTable = () => {
     const token = getAuthToken();
 
     if (token) {
-      // User is logged in, attempt to fetch actual URLs
       setIsLoggedIn(true);
-      setShowInitialSkeletonAndRedirect(false); // No need for fake loading if logged in
+      setShowInitialSkeletonAndRedirect(false);
       fetchUrls();
     } else {
-      // User is NOT logged in, simulate loading for 5 seconds then redirect
-      setLoading(true); // Ensure loading is true to show skeleton
-      setError(null); // Clear any previous error state
+      setLoading(true);
+      setError(null);
 
       const redirectTimer = setTimeout(() => {
-        setLoading(false); // Stop loading after fake period
-        setShowInitialSkeletonAndRedirect(false); // Indicate fake load is complete
-        navigate("/login"); // Redirect to login page
-      }, 5000); // 5000ms = 5 seconds
+        setLoading(false);
+        setShowInitialSkeletonAndRedirect(false);
+        navigate("/login");
+      }, 5000);
 
-      // Cleanup function for the timer
       return () => clearTimeout(redirectTimer);
     }
-  }, []); // Empty dependency array ensures this effect runs only once on mount
+  }, [refreshTrigger]); // MODIFICATION: Add refreshTrigger to dependency array
 
   const fetchUrls = async () => {
     try {
-      setLoading(true); // Always set loading true when fetching data
-      setError(null); // Clear errors before a new fetch attempt
+      setLoading(true);
+      setError(null);
 
       const token = getAuthToken();
 
       if (!token) {
-        // This case should ideally not be hit if useEffect handles initial non-auth correctly.
-        // It's a fallback for refresh or other edge cases where token disappears mid-session.
         localStorage.removeItem("access_token");
         setIsLoggedIn(false);
-        // Throw an error to display the error message and trigger login redirect
         throw new Error("No authentication token found. Please log in again.");
       }
 
@@ -168,11 +163,8 @@ const UrlTable = () => {
       });
 
       if (response.status === 401) {
-        // Token is invalid or expired
         localStorage.removeItem("access_token");
         setIsLoggedIn(false);
-        // This will trigger the "Error loading URLs" path for logged-in users
-        // and then redirect via the error message's logic.
         throw new Error("Your session has expired. Please log in again.");
       }
 
@@ -185,35 +177,34 @@ const UrlTable = () => {
       const transformedData = data
         .map((item, index) => ({
           id: item.id || index + 1,
-          key: item.key, // Ensure the 'key' is part of the item for QR code generation
+          key: item.key,
           shortUrl: `https://shorter-umber.vercel.app/s/${item.key}`,
           target_url: item.original_url || item.target_url,
-          qrCode: true, // Assuming all URLs have QR codes available
+          qrCode: true,
           date: item.date_created
             ? formatDate(item.date_created)
             : new Date().toLocaleDateString(),
           dateRaw: item.date_created ? new Date(item.date_created) : new Date(),
           clicks: item.clicks || 0,
         }))
-        .sort((a, b) => b.dateRaw - a.dateRaw) // Sort by dateRaw descending
-        .slice(0, URL_LIMIT); // Take only the latest 'URL_LIMIT' links
+        .sort((a, b) => b.dateRaw - a.dateRaw)
+        .slice(0, URL_LIMIT);
 
       setUrls(transformedData);
-      setIsLoggedIn(true); // Confirm logged in after successful fetch
+      setIsLoggedIn(true);
     } catch (err) {
       console.error("Error fetching URLs:", err);
       setError(err.message);
-      toast.error(err.message); // Always show toast for actual fetch errors
+      toast.error(err.message);
 
-      // If it's an auth error during a fetch, redirect to login after toast
       if (
         err.message.includes("session has expired") ||
         err.message.includes("authentication") ||
-        err.message.includes("No authentication token") // Added this specific error message
+        err.message.includes("No authentication token")
       ) {
         setTimeout(() => {
           navigate("/login");
-        }, 2000); // Give user time to see the toast
+        }, 2000);
       }
     } finally {
       setLoading(false);
@@ -329,12 +320,9 @@ const UrlTable = () => {
   };
 
   const handleRefresh = () => {
-    // Only refresh if user is logged in
     if (isLoggedIn) {
       fetchUrls();
     } else {
-      // If refresh is clicked while not logged in (and after the fake load),
-      // just redirect to login immediately.
       navigate("/login");
     }
   };

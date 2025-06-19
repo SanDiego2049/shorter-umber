@@ -150,9 +150,8 @@ const Navbar = () => {
                   // Changed px-4 to px-2, text-sm to text-xs, and added hidden for text on extra small screens, and flex-none
                   className="cursor-pointer px-2 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full transition-colors duration-200 shadow-lg hover:shadow-red-500/25 text-xs flex items-center gap-1 flex-none"
                 >
-                  <LogOut size={18} /> {/* Increased icon size */}
+                  <LogOut size={22} />
                   <span className="hidden xs:inline">Logout</span>{" "}
-                  {/* Hidden on very small screens, visible on 'xs' breakpoint */}
                 </button>
               </>
             ) : (
@@ -182,7 +181,7 @@ const Navbar = () => {
             {/* Theme Toggle Button (always visible and functional) */}
             <button
               onClick={handleThemeToggle}
-              className="w-10 h-10 dark:bg-slate-800 hover:bg-slate-700 transition-colors duration-200 rounded-full flex items-center justify-center border border-slate-600 flex-none"
+              className="cursor-pointer w-10 h-10 dark:bg-slate-800 dark:hover:bg-slate-700 hover:bg-slate-300 transition-colors duration-200 rounded-full flex items-center justify-center border border-slate-600 flex-none"
               title={`Switch to ${
                 actualTheme === "dark" ? "light" : "dark"
               } mode`}

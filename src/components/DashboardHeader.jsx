@@ -18,8 +18,8 @@ const SkeletonCircle = ({ size = "w-8 h-8" }) => (
 );
 // --- End Skeleton Components ---
 
-const DashboardHeader = () => {
-  // Removed onShortenLink from props as it's handled internally now
+// MODIFICATION START: Accept onUrlShortened prop
+const DashboardHeader = ({ onUrlShortened }) => {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
@@ -111,7 +111,6 @@ const DashboardHeader = () => {
     navigate("/");
   };
 
-  // --- Start: Modified handleSubmit for API call ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!url.trim()) {
@@ -158,6 +157,11 @@ const DashboardHeader = () => {
       const data = await response.json();
       toast.success(`Link shortened: ${data.key}`); // Assuming 'key' is part of the response for the short URL part
       setUrl(""); // Clear input after successful shortening
+
+      // MODIFICATION: Call onUrlShortened callback
+      if (onUrlShortened) {
+        onUrlShortened();
+      }
     } catch (error) {
       console.error("Error shortening link:", error);
       toast.error(

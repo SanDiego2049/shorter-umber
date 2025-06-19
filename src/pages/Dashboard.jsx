@@ -7,19 +7,13 @@ import ThemeToggler from "../components/ThemeToggler";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("history");
-  const [links, setLinks] = useState([]);
 
-  const handleCopyLink = async (shortUrl) => {
-    try {
-      await navigator.clipboard.writeText(`https://${shortUrl}`);
-      console.log("Link copied to clipboard");
-    } catch (err) {
-      console.error("Failed to copy link");
-    }
-  };
+  // MODIFIED: Add a state to trigger URL table refresh
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
 
-  const handleDeleteLink = (id) => {
-    setLinks(links.filter((link) => link.id !== id));
+  // MODIFIED: Callback function to increment the trigger
+  const handleUrlShortened = () => {
+    setHistoryRefreshTrigger((prevKey) => prevKey + 1);
   };
 
   const renderContent = () => {
@@ -27,9 +21,7 @@ const Dashboard = () => {
       case "history":
         return (
           <LinkHistory
-            links={links}
-            onCopyLink={handleCopyLink}
-            onDeleteLink={handleDeleteLink}
+            refreshTrigger={historyRefreshTrigger} // MODIFIED: Pass the refresh trigger
           />
         );
       case "statistics":
@@ -64,7 +56,8 @@ const Dashboard = () => {
 
       {/* Content wrapper with proper z-index */}
       <div className="relative z-10">
-        <DashboardHeader user="Mohammed" />{" "}
+        {/* MODIFIED: Pass the callback to DashboardHeader */}
+        <DashboardHeader onUrlShortened={handleUrlShortened} />{" "}
         <NavigationTabs activeTab={activeTab} onTabChange={setActiveTab} />
         <ThemeToggler />
         <div className="max-w-7xl mx-auto px-6 py-8">{renderContent()}</div>

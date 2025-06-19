@@ -3,18 +3,30 @@ import { Link, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router";
 import toast from "react-hot-toast";
 
-const Hero = () => {
+// MODIFICATION START: Accept onUrlShortened prop
+const Hero = ({ onUrlShortened }) => {
   const navigate = useNavigate();
 
   const [url, setUrl] = useState("");
   const [autoPaste, setAutoPaste] = useState(true);
   const [isShortening, setIsShortening] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // No need for setLinksRemaining here, as the parent will manage the refresh
 
   // Check authentication status on component mount
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     setIsAuthenticated(!!token);
+
+    // Add event listener for custom authStateChange event
+    const handleAuthStateChange = () => {
+      setIsAuthenticated(!!localStorage.getItem("access_token"));
+    };
+    window.addEventListener("authStateChange", handleAuthStateChange);
+
+    return () => {
+      window.removeEventListener("authStateChange", handleAuthStateChange);
+    };
   }, []);
 
   // Auto-paste from clipboard functionality
@@ -136,14 +148,12 @@ const Hero = () => {
       const data = await shortenUrl(url.trim());
 
       if (data) {
-        if (data.links_remaining !== undefined) {
-          setLinksRemaining(data.links_remaining);
-        } else {
-          setLinksRemaining((prev) => Math.max(0, prev - 1));
+        // MODIFICATION: Call onUrlShortened callback
+        if (onUrlShortened) {
+          onUrlShortened();
         }
-
         toast.success("URL shortened successfully!");
-        setUrl("");
+        setUrl(""); // Clear the input field
       }
     } finally {
       setIsShortening(false);

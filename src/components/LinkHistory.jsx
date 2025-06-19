@@ -107,7 +107,8 @@ const SkeletonMobileCard = () => (
 );
 // --- End Skeleton Components ---
 
-const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
+// MODIFICATION START: Accept refreshTrigger prop
+const LinkHistory = ({ onCopyLink, onDeleteLink, refreshTrigger }) => {
   const navigate = useNavigate();
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,7 +136,7 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
       setLoading(false); // Immediately set loading to false if not logged in
       setError("Please log in to view your links."); // More direct message
     }
-  }, []);
+  }, [refreshTrigger]); // MODIFICATION: Add refreshTrigger to dependency array
 
   const fetchLinks = async () => {
     try {
@@ -410,7 +411,7 @@ const LinkHistory = ({ onCopyLink, onDeleteLink }) => {
                     Date
                   </th>
                   <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide truncate">
-                    QR Code
+                    QR Code {/* New Header for QR Code */}
                   </th>
                   <th className="text-left py-4 px-4 text-sm font-semibold dark:text-slate-300 uppercase tracking-wide">
                     Actions
